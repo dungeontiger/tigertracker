@@ -1,0 +1,21 @@
+<project name="TigerTracker.makejar" default="makejar" basedir=".">
+	<property name="dist" value="../testCraftBukkit/plugins"/>
+	<target name ="makejar" description="Creates jar file and deploys to test craftbukkit directory.">
+		<delete file="${dist}/TigerTracker.jar"/>
+		<delete file="${dist}/TigerTracker/config.yml"/>
+		<delete file="${dist}/TigerTracker/tigertracker.log"/>
+		<jar jarfile="${dist}/TigerTracker.jar">
+			<fileset dir="bin">
+				<include name="**/*.class"/>
+			</fileset>
+			<fileset file="resources/plugin.yml"/>
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+			</manifest>
+			<fileset file="resources/config.yml"/>
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+			</manifest>
+		</jar>
+	</target>
+</project>

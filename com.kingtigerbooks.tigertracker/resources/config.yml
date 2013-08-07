@@ -1,0 +1,10 @@
+database:
+   use: true
+   databaseName: tigertracker
+   userId: tigertracker
+   password: MooMoo
+   connectionString: jdbc:mysql://localhost:3306/
+flatfile:
+   use: true
+   filename: events.csv
+   
