@@ -24,7 +24,7 @@ public class TigerTracker extends JavaPlugin {
     	saveDefaultConfig();
     	settings = new Settings(getConfig(), getDataFolder().getAbsolutePath());
     	console = getServer().getConsoleSender();
-    	log = new Log(settings.dataFolder() + "tigertracker.log");
+    	log = new Log(settings.logFilePath());
     	
     	getServer().getPluginManager().registerEvents(new PlayerListener(), this);
     	getServer().getPluginManager().registerEvents(new MobListener(), this);

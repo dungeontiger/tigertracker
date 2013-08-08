@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Calendar;
 
 public class EventManager {
 	
@@ -44,7 +43,7 @@ public class EventManager {
 		//
 		// dateTime,type,source,x,y,z,details
 		//
-		String line = getDateTimeString(event.time) + "," + getEventTypeString(event.type) + "," + event.player + ",";
+		String line = event.time + "," + getEventTypeString(event.type) + "," + event.player + ",";
 		if (event.x != null && event.y != null && event.z != null) {
 			line += String.valueOf(event.x) + "," + String.valueOf(event.y) + "," + String.valueOf(event.z) ;
 		} else {

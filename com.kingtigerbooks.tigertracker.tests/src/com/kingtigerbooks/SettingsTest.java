@@ -25,5 +25,6 @@ public class SettingsTest {
 		assertTrue(settings.useFlatFile());
 		assertTrue(settings.flatFileName().compareTo("x.csv") == 0);
 		assertTrue(settings.dataFolder().compareTo("./data") == 0);
+		assertTrue(settings.logFilePath().compareTo("./data/tigertracker.log") == 0);
 	}
 }

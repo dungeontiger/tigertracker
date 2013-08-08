@@ -5,7 +5,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Calendar;
 
 public class DatabaseLogger {
 	
@@ -55,10 +54,10 @@ public class DatabaseLogger {
 		if (noDatabase()) {
 			createDatabase();
 			createEventTable();
-			createUserTable();
-			createEventTypeTable();
-			createMobTable();
-			createItemTable();
+			createSimpleTable("user");
+			createSimpleTable("eventType");
+			createSimpleTable("mob");
+			createSimpleTable("item");
 		}
 	}
 	
@@ -73,29 +72,50 @@ public class DatabaseLogger {
 		}
 	}
 	
-	// TODO: these could be generalized better
-	public void writeEvent(Event e) {
-		switch (e.type) 
-		{
-		case EventType.PLUGIN_DISABLED:
-		case EventType.PLUGIN_ENABLED:
-			writePluginEvent(e);
-			break;
-		case EventType.PLAYER_CONNECT:
-		case EventType.PLAYER_DISCONNECT:
-			writePlayerConnectEvent(e);
-			break;
-		case EventType.PLAYER_DEATH:
-		case EventType.PLAYER_CHAT:
-		case EventType.PlAYER_PICKUP:
-			writePlayerDetailsEvent(e);
-			break;
-		case EventType.MOB_DEATH:
-			writeMobDeathEvent(e);
-			break;
-		default:
-			TigerTracker.logError("Unknown event type in database write event.");
+	public void writeEvent(Event event) {	
+		Integer eventTypeId = getDatabaseId(getEventTypeString(event.type), "eventType");
+		Integer userId = getDatabaseId(event.player, "user");
+		Integer itemId = getDatabaseId(event.item, "item");
+		Integer mobId = getDatabaseId(event.mob, "mob");
+		String sql = "INSERT " + database + ".event (eventTime, eventTypeId, userId, x, y, z, mobId, itemId, details) VALUES ('" +
+		      event.time + "','" + eventTypeId + "', " + userId + "," + event.x + "," + event.y + "," + event.z + "," +
+		      mobId + "," + itemId + ",\"" + event.details + "\")";
+		try {
+			Statement statement = connection.createStatement();
+			statement.execute(sql);
+		} catch (SQLException e) {
+			TigerTracker.logException(e, "Cannot insert event.");
+			e.printStackTrace();
+		}		
+	}
+	
+	private Integer getDatabaseId(String value, String table) {
+		if (value != null){
+			Statement statement;
+			String sql = "SELECT id FROM " + database + "." + table + " WHERE " + table + " = '" + value + "'";
+			try {
+				statement = connection.createStatement();
+				ResultSet results = statement.executeQuery(sql);
+				if (results.next()) {
+					return results.getInt("id");
+				}
+				else
+				{
+					// TODO: Do I need all these extra connections?
+					statement = connection.createStatement();
+					statement.execute("INSERT " + database + "." + table + " (" + table + ") VALUES ('" + value + "')");
+					statement = connection.createStatement();
+					results = statement.executeQuery(sql);
+					if (results.next()) {
+						return results.getInt("id");
+					}
+				}
+			} catch (SQLException e) {
+				TigerTracker.logException(e, "Cannot get database id for " + value + " in table " + table);
+				e.printStackTrace();
+			}
 		}
+		return null;
 	}
 	
 	private boolean noDatabase() {
@@ -135,180 +155,19 @@ public class DatabaseLogger {
 			e.printStackTrace();
 		}
 	}
-	
-	private void createUserTable() {
-		Statement statement;
-		String sql = "CREATE TABLE " + database + ".user (id int AUTO_INCREMENT PRIMARY KEY, userName VARCHAR(50))";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot create user table.");
-			e.printStackTrace();
-		}
-	}
-	
-	private void createEventTypeTable() {
-		Statement statement;
-		String sql = "CREATE TABLE " + database + ".eventType (id int AUTO_INCREMENT PRIMARY KEY, eventType VARCHAR(50))";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot create eventType table.");
-			e.printStackTrace();
-		}
-	}
-	
-	private void createMobTable() {
-		Statement statement;
-		String sql = "CREATE TABLE " + database + ".mob (id int AUTO_INCREMENT PRIMARY KEY, mobName VARCHAR(50))";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot create mob table.");
-			e.printStackTrace();
-		}
-	}
-	
-	private void createItemTable() {
-		Statement statement;
-		String sql = "CREATE TABLE " + database + ".item (id int AUTO_INCREMENT PRIMARY KEY, itemName VARCHAR(50))";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot create item table.");
-			e.printStackTrace();
-		}
-	}
 
-	private void writePluginEvent(Event event) {
+	private void createSimpleTable(String table) {
 		Statement statement;
-		String sql = "INSERT " + database + ".event (eventTime, eventTypeId) VALUES ('" + getDateTimeString(event.time) + "','" + getEventTypeId(event.type) + "')";
+		String sql = "CREATE TABLE " + database + "." + table + " (id int AUTO_INCREMENT PRIMARY KEY, " + table + " VARCHAR(50))";
 		try {
 			statement = connection.createStatement();
 			statement.execute(sql);
 		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot insert plugin event.");
+			TigerTracker.logException(e, "Cannot create table " + table);
 			e.printStackTrace();
 		}
 	}
 	
-	private void writePlayerConnectEvent(Event event) {
-		
-		int userId = getUserId(event.player);
-		
-		Statement statement;
-		String sql = "INSERT " + database + ".event (eventTime, eventTypeId, userId, x, y, z) VALUES ('" +
-		      getDateTimeString(event.time) + "','" + getEventTypeId(event.type) + "', " + userId + "," +
-		      event.x + "," + event.y + "," + event.z + ")";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot insert player connect event.");
-			e.printStackTrace();
-		}
-	}
-	
-	private void writePlayerDetailsEvent(Event event) {
-		int userId = getUserId(event.player);
-		
-		Statement statement;
-		String sql = "INSERT " + database + ".event (eventTime, eventTypeId, userId, x, y, z, details) VALUES ('" +
-		      getDateTimeString(event.time) + "','" + getEventTypeId(event.type) + "', " + userId + "," +
-		      event.x + "," + event.y + "," + event.z + ",\"" + event.details + "\")";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot insert player connect event.");
-			e.printStackTrace();
-		}		
-	}
-	
-	// TODO: split into mob id
-	private void writeMobDeathEvent(Event event) {
-		int userId = getUserId(event.player);
-		
-		Statement statement;
-		String sql = "INSERT " + database + ".event (eventTime, eventTypeId, userId, x, y, z, details) VALUES ('" +
-		      getDateTimeString(event.time) + "','" + getEventTypeId(event.type) + "', " + userId + "," +
-		      event.x + "," + event.y + "," + event.z + ",\"" + event.details + "\")";
-		try {
-			statement = connection.createStatement();
-			statement.execute(sql);
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot insert mob death event.");
-			e.printStackTrace();
-		}		
-	}
-	
-	private int getUserId(String userName) {
-		Statement statement;
-		String sql = "SELECT id FROM " + database + ".user WHERE userName = '" + userName + "'";
-		try {
-			statement = connection.createStatement();
-			ResultSet results = statement.executeQuery(sql);
-			if (results.next()) {
-				return results.getInt("id");
-			}
-			else
-			{
-				// insert the new user
-				statement = connection.createStatement();
-				statement.execute("INSERT " + database + ".user (userName) VALUES ('" + userName + "')");
-				// now that we know the user exists, we can safely call this recursively
-				// TODO: Still this scares me
-				return getUserId(userName);
-			}
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot get user id.");
-			e.printStackTrace();
-		}
-		// TODO: deal with bailing out.
-		return -1;
-	}
-
-	private int getEventTypeId(int eventType) {
-		Statement statement;
-		String eventTypeString = getEventTypeString(eventType);
-		String sql = "SELECT id FROM " + database + ".eventType WHERE eventType = '" + eventTypeString + "'";
-		try {
-			statement = connection.createStatement();
-			ResultSet results = statement.executeQuery(sql);
-			if (results.next()) {
-				return results.getInt("id");
-			}
-			else
-			{
-				// insert the new user
-				statement = connection.createStatement();
-				statement.execute("INSERT " + database + ".eventType (eventType) VALUES ('" + eventTypeString + "')");
-				// now that we know the event exists, we can safely call this recursively
-				// TODO: Still this scares me
-				return getEventTypeId(eventType);
-			}
-		} catch (SQLException e) {
-			TigerTracker.logException(e, "Cannot get eventType id.");
-			e.printStackTrace();
-		}
-		// TODO: deal with bailing out.
-		return -1;
-	}
-	
-	// TODO: Clean this up, either don't use it or make it a utility
-	private static String getDateTimeString(Calendar time) {
-		// TODO: These Calendar functions are locale specific
-		String dateTime = String.valueOf(time.get(Calendar.YEAR)) + "-" + String.valueOf(time.get(Calendar.MONTH) + 1) + "-" + String.valueOf(time.get(Calendar.DAY_OF_MONTH));
-		dateTime += " ";
-		dateTime += String.valueOf(time.get(Calendar.HOUR_OF_DAY)) + ":" + String.valueOf(time.get(Calendar.MINUTE)) + ":" + String.valueOf(time.get(Calendar.SECOND));
-		return dateTime;
-	}
-	
-	// TODO: Clean this up, either don't use it or make it a utility
 	private static String getEventTypeString(int type) {
 		switch (type)
 		{
